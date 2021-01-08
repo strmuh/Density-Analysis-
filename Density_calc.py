@@ -49,26 +49,63 @@ class Determinedensity():
             Densities[name] = Density
         return Densities
 
-    def autodensity(self):
-        autoThresh = {}
+    def autoimage(self):
         autoImage = {}
         for name, imgray in self.loadImages().items():
             th3, ret3 = cv2.threshold(imgray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_TRIANGLE)
-            autoThresh[name]= th3
-            autoImage[name] = ret3
-        autoDensities = self.densities(autoThresh)
-        self.autoThresh = autoThresh
-        self.autoImage = autoImage
-        return autoDensities
+            autoImage[name] = {'Threshold':th3, 'Image':ret3}
+        return autoImage
 
-    def mandensity(self, threshold):
-        manthresholds = {}
+    def manimage(self, threshold=110):
         manImage = {}
         for name, imgray in self.loadImages().items():
             thresh1, ret = cv2.threshold(imgray, threshold, 255, cv2.THRESH_BINARY)
-            manthresholds[name]=thresh1
-            manImage[name] = ret
+            manImage[name] = {'Threshold':thresh1, 'Image':ret}
+        return manImage
+
+    def autodensity(self):
+        autoThresh = {}
+        for name, items in self.autoimage().items():
+            autoThresh[name] = items['Threshold']
+        autoDensities = self.densities(autoThresh)
+        return autoDensities
+
+    def mandensity(self):
+        manthresholds = {}
+        for name, items in self.manimage().items():
+            manthresholds[name] = items['Threshold']
         mandensities = self.densities(manthresholds)
-        self.manImage = manImage
-        self.manthresholds = manthresholds
         return mandensities
+
+    def histogram_plot(self):
+        for name, imgray in self.loadImages().items():
+            counts, bins = np.histogram(imgray, range(256))
+            # plot histogram centered on values 0..255
+            plt.figure(name)
+            plt.bar(bins[:-1] - 0.5, counts, width=1, edgecolor='none')
+            # for j, k in enumerate(counts):
+            #     if k != 0:
+            #         min_val = j
+            #         break
+            # for d, t in enumerate(counts[::-1]):
+            #     if t!= 0:
+            #         max_val = len(counts)-d
+            #         break
+            # plt.xlim([min_val-2, max_val+2])
+            plt.xlim([-0.5, 255.5])
+            plt.show()
+
+    def save_images(self):
+        manimgs = self.manimage()
+        autoimgs = self.autoimage()
+        ogimgs = self.loadImages()
+        for name, ogimg in ogimgs.items():
+            fig, axs = plt.subplots(1,3)
+            axs[0].imshow(ogimg, 'gray')
+            axs[0].set_title('Original Image')
+            axs[1].imshow(manimgs[name]['Image'], 'gray')
+            axs[1].set_title('Manual Threshold')
+            axs[2].imshow(autoimgs[name]['Image'], 'gray')
+            axs[2].set_title('Automatic Threshold')
+            fig.suptitle(name, fontsize=16)
+            plt.show()
