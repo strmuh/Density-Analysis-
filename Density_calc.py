@@ -43,18 +43,32 @@ class Determinedensity():
             Hist[name] = [[counts], [bins]]
             Total_Pixels = sum(counts)
             voids = 0
-            for a in range(1, int(threshold)):
+            for a in range(1, int(threshold[name])):
                 voids += counts[a]
             Density = 100 - voids / Total_Pixels * 100
             Densities[name] = Density
         return Densities
 
-    def autothreshold(self):
+    def autodensity(self):
         autoThresh = {}
         autoImage = {}
         for name, imgray in self.loadImages().items():
             th3, ret3 = cv2.threshold(imgray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_TRIANGLE)
             autoThresh[name]= th3
             autoImage[name] = ret3
-            autoDensities = self.densities(th3)
+        autoDensities = self.densities(autoThresh)
+        self.autoThresh = autoThresh
+        self.autoImage = autoImage
         return autoDensities
+
+    def mandensity(self, threshold):
+        manthresholds = {}
+        manImage = {}
+        for name, imgray in self.loadImages().items():
+            thresh1, ret = cv2.threshold(imgray, threshold, 255, cv2.THRESH_BINARY)
+            manthresholds[name]=thresh1
+            manImage[name] = ret
+        mandensities = self.densities(manthresholds)
+        self.manImage = manImage
+        self.manthresholds = manthresholds
+        return mandensities
