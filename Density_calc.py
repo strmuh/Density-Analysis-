@@ -50,14 +50,18 @@ class Determinedensity():
         return Densities
 
     def autoimage(self):
+        # Create empty Dict to store Image and auto Threshold data
         autoImage = {}
+        #Loop over images and obtain auto threshold data
         for name, imgray in self.loadImages().items():
             th3, ret3 = cv2.threshold(imgray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_TRIANGLE)
             autoImage[name] = {'Threshold':th3, 'Image':ret3}
         return autoImage
 
     def manimage(self, threshold=110):
+        # Create empty Dict to store Image and manual Threshold data
         manImage = {}
+        # Loop over images and obtain manual threshold data
         for name, imgray in self.loadImages().items():
             thresh1, ret = cv2.threshold(imgray, threshold, 255, cv2.THRESH_BINARY)
             manImage[name] = {'Threshold':thresh1, 'Image':ret}
@@ -70,9 +74,9 @@ class Determinedensity():
         autoDensities = self.densities(autoThresh)
         return autoDensities
 
-    def mandensity(self):
+    def mandensity(self, threshold=110):
         manthresholds = {}
-        for name, items in self.manimage().items():
+        for name, items in self.manimage(threshold).items():
             manthresholds[name] = items['Threshold']
         mandensities = self.densities(manthresholds)
         return mandensities
@@ -100,12 +104,33 @@ class Determinedensity():
         autoimgs = self.autoimage()
         ogimgs = self.loadImages()
         for name, ogimg in ogimgs.items():
-            fig, axs = plt.subplots(1,3)
+            fig, axs = plt.subplots(1,3, constrained_layout=True)
             axs[0].imshow(ogimg, 'gray')
             axs[0].set_title('Original Image')
             axs[1].imshow(manimgs[name]['Image'], 'gray')
-            axs[1].set_title('Manual Threshold')
+            axs[1].set_title('Manual Threshold ={}'.format(manimgs[name]['Threshold']))
             axs[2].imshow(autoimgs[name]['Image'], 'gray')
-            axs[2].set_title('Automatic Threshold')
-            fig.suptitle(name, fontsize=16)
+            axs[2].set_title('Automatic Threshold={}'.format(autoimgs[name]['Threshold']))
+            fig.suptitle(name, fontsize=11)
+            # plt.tight_layout()
             plt.show()
+
+    def export_data(self):
+        # Create a workbook and add a worksheet.
+        workbook = xlsxwriter.Workbook('Test_results.xlsx')
+        worksheet = workbook.add_worksheet('1')
+        # Add a bold format to use to highlight cells.
+        bold = workbook.add_format({'bold': True})
+        # # Write some data headers.
+        worksheet.write('A1', 'Sample Number', bold)
+        worksheet.write('B1', 'Density', bold)
+        # Start from the first cell. Rows and columns are zero indexed.
+        row = 1
+        col = 0
+        # Iterate over the data and write it out row by row.
+        for key, value in Densities.items():
+            worksheet.write(row, col, key.split(".")[0])
+            worksheet.write(row, col + 1, value)
+            row += 1
+        # workbook.close()
+        
