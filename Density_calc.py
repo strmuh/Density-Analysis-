@@ -82,11 +82,13 @@ class Determinedensity():
         return mandensities
 
     def histogram_plot(self):
+        hist_data = {}
         for name, imgray in self.loadImages().items():
             counts, bins = np.histogram(imgray, range(256))
+            hist_data[name] = {'Counts':counts.transpose().tolist(), 'Bins': bins.transpose()}
             # plot histogram centered on values 0..255
-            plt.figure(name)
-            plt.bar(bins[:-1] - 0.5, counts, width=1, edgecolor='none')
+            # plt.figure(name)
+            # plt.bar(bins[:-1] - 0.5, counts, width=1, edgecolor='none')
             # for j, k in enumerate(counts):
             #     if k != 0:
             #         min_val = j
@@ -96,8 +98,9 @@ class Determinedensity():
             #         max_val = len(counts)-d
             #         break
             # plt.xlim([min_val-2, max_val+2])
-            plt.xlim([-0.5, 255.5])
-            plt.show()
+            # plt.xlim([-0.5, 255.5])
+            # plt.show()
+        return hist_data
 
     def save_images(self):
         manimgs = self.manimage()
@@ -116,21 +119,29 @@ class Determinedensity():
             plt.show()
 
     def export_data(self):
+        manimgs = self.manimage()
+        autoimgs = self.autoimage()
+        hist = self.histogram_plot()
         # Create a workbook and add a worksheet.
         workbook = xlsxwriter.Workbook('Test_results.xlsx')
-        worksheet = workbook.add_worksheet('1')
+        worksheet = workbook.add_worksheet(self.directory)
         # Add a bold format to use to highlight cells.
         bold = workbook.add_format({'bold': True})
         # # Write some data headers.
-        worksheet.write('A1', 'Sample Number', bold)
-        worksheet.write('B1', 'Density', bold)
+        worksheet.write('A1', self.directory, bold)
+        worksheet.write('A2', 'Sample Number', bold)
+        worksheet.write('B2', 'Threshold', bold)
+        worksheet.write('C2', 'Density', bold)
         # Start from the first cell. Rows and columns are zero indexed.
-        row = 1
+        row = 2
         col = 0
         # Iterate over the data and write it out row by row.
-        for key, value in Densities.items():
+        for key, value in self.autodensity().items():
             worksheet.write(row, col, key.split(".")[0])
-            worksheet.write(row, col + 1, value)
+            worksheet.write(row, col + 1, autoimgs[key]['Threshold'])
+            worksheet.write(row, col + 2, value)
+            for a,w in enumerate(hist[key]['Counts']):
+                worksheet.write(2, 5 + a, w)
             row += 1
-        # workbook.close()
+        workbook.close()
         
