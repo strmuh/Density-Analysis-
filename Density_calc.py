@@ -1,10 +1,12 @@
 """ Function to Determine Image Pixel Density for Microscopy Samples """
 # Import relavent packages
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import cv2
 import os
 import xlsxwriter
+from openpyxl import load_workbook
 
 # Create analysis class
 class Determinedensity():
@@ -85,7 +87,7 @@ class Determinedensity():
         hist_data = {}
         for name, imgray in self.loadImages().items():
             counts, bins = np.histogram(imgray, range(256))
-            hist_data[name] = {'Counts':counts.transpose().tolist(), 'Bins': bins.transpose()}
+            hist_data[name] = {'Counts':counts,'Bins':bins}
             # plot histogram centered on values 0..255
             # plt.figure(name)
             # plt.bar(bins[:-1] - 0.5, counts, width=1, edgecolor='none')
@@ -118,30 +120,49 @@ class Determinedensity():
             # plt.tight_layout()
             plt.show()
 
-    def export_data(self):
-        manimgs = self.manimage()
-        autoimgs = self.autoimage()
+    def export_data(self, density_option = True, threshold = 110):
         hist = self.histogram_plot()
+        if density_option:
+            density_data = self.autodensity().items()
+            image_data = self.autoimage()
+        else:
+            density_data = self.mandensity(threshold).items()
+            image_data = self.manimage(threshold)
+        # Create DataFrame with info to be exported
+        ex_df = pd.DataFrame(density_data, columns = ['Sample Number', 'Density'])
+        ex_df['Threshold'] = [image_data[i]['Threshold'] for i in image_data.keys()]
+        hist_out= pd.DataFrame([hist[i]['Counts'] for i in hist.keys()], index = hist.keys())
+        hist_out.rename_axis('Histogram Bins:', inplace=True)
+        hist_out.rename_axis('Histogram Data', axis = 1, inplace = True)
         # Create a workbook and add a worksheet.
-        workbook = xlsxwriter.Workbook('Test_results.xlsx')
-        worksheet = workbook.add_worksheet(self.directory)
-        # Add a bold format to use to highlight cells.
-        bold = workbook.add_format({'bold': True})
-        # # Write some data headers.
-        worksheet.write('A1', self.directory, bold)
-        worksheet.write('A2', 'Sample Number', bold)
-        worksheet.write('B2', 'Threshold', bold)
-        worksheet.write('C2', 'Density', bold)
-        # Start from the first cell. Rows and columns are zero indexed.
-        row = 2
-        col = 0
-        # Iterate over the data and write it out row by row.
-        for key, value in self.autodensity().items():
-            worksheet.write(row, col, key.split(".")[0])
-            worksheet.write(row, col + 1, autoimgs[key]['Threshold'])
-            worksheet.write(row, col + 2, value)
-            for a,w in enumerate(hist[key]['Counts']):
-                worksheet.write(2, 5 + a, w)
-            row += 1
-        workbook.close()
+            
+        # Create a Pandas Excel writer using XlsxWriter as the engine.
+        writer = pd.ExcelWriter('Test_results.xlsx', engine='xlsxwriter')
+        # Position the dataframes in the worksheet.
+        ex_df.to_excel(writer, sheet_name=self.directory, index=False)  # Default position, cell A1.
+        hist_out.to_excel(writer, sheet_name=self.directory, startcol=5)
+        # Close the Pandas Excel writer and output the Excel file.
+        writer.save()
+
+        # workbook = xlsxwriter.Workbook('Test_results.xlsx')
+        # worksheet = workbook.add_worksheet(self.directory)
+        # # Add a bold format to use to highlight cells.
+        # bold = workbook.add_format({'bold': True})
+        # # # Write some data headers.
+        # worksheet.write('A1', self.directory, bold)
+        # worksheet.write('A2', 'Sample Number', bold)
+        # worksheet.write('B2', 'Threshold', bold)
+        # worksheet.write('C2', 'Density', bold)
+        # # Start from the first cell. Rows and columns are zero indexed.
+        # row = 2
+        # col = 0
+        # # Iterate over the data and write it out row by row.
+        # for key, value in self.autodensity().items():
+        #     worksheet.write(row, col, key.split(".")[0])
+        #     worksheet.write(row, col + 1, autoimgs[key]['Threshold'])
+        #     worksheet.write(row, col + 2, value)
+        #     for a,w in enumerate(hist[key]['Counts']):
+        #         worksheet.write(2, 5 + a, w)
+        #     row += 1
+        # workbook.close()
         
