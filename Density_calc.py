@@ -120,7 +120,7 @@ class Determinedensity():
             # plt.tight_layout()
             plt.show()
 
-    def export_data(self, density_option = True, threshold = 110):
+    def export_data(self, density_option = True, threshold = 110, filename = 'Test_results.xlsx'):
         hist = self.histogram_plot()
         if density_option:
             density_data = self.autodensity().items()
@@ -135,14 +135,19 @@ class Determinedensity():
         hist_out.rename_axis('Histogram Bins:', inplace=True)
         hist_out.rename_axis('Histogram Data', axis = 1, inplace = True)
         # Create a workbook and add a worksheet.
-            
-        # Create a Pandas Excel writer using XlsxWriter as the engine.
-        writer = pd.ExcelWriter('Test_results.xlsx', engine='xlsxwriter')
+        try:
+            book = load_workbook(filename)
+            writer = pd.ExcelWriter(filename, engine='openpyxl')
+            writer.book = book
+        except FileNotFoundError:
+            # Create a Pandas Excel writer using XlsxWriter as the engine.
+            writer = pd.ExcelWriter(filename, engine='xlsxwriter')
         # Position the dataframes in the worksheet.
         ex_df.to_excel(writer, sheet_name=self.directory, index=False)  # Default position, cell A1.
         hist_out.to_excel(writer, sheet_name=self.directory, startcol=5)
         # Close the Pandas Excel writer and output the Excel file.
         writer.save()
+        
 
         # workbook = xlsxwriter.Workbook('Test_results.xlsx')
         # worksheet = workbook.add_worksheet(self.directory)
