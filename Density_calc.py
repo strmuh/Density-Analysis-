@@ -29,9 +29,9 @@ class Determinedensity():
     # Create method for reading image files
     def loadImages(self):
         imgrays = {}
-        for i, image in enumerate(self.fileList()): # Loop over images
+        for image in self.fileList(): # Loop over images
             # Create variable for image
-            im = cv2.imread(str(image))
+            im = cv2.imread(self.directory+'/'+ str(image))
             # Convert image Grayscale
             imgrays[image] = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
         return imgrays
@@ -54,32 +54,32 @@ class Determinedensity():
     def autoimage(self):
         # Create empty Dict to store Image and auto Threshold data
         autoImage = {}
+        autoThresh = {}
         #Loop over images and obtain auto threshold data
         for name, imgray in self.loadImages().items():
             th3, ret3 = cv2.threshold(imgray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_TRIANGLE)
-            autoImage[name] = {'Threshold':th3, 'Image':ret3}
-        return autoImage
+            autoImage[name] = ret3
+            autoThresh[name] = th3
+        return autoImage, autoThresh
 
     def manimage(self, threshold=110):
         # Create empty Dict to store Image and manual Threshold data
         manImage = {}
+        manThresh = {}
         # Loop over images and obtain manual threshold data
         for name, imgray in self.loadImages().items():
             thresh1, ret = cv2.threshold(imgray, threshold, 255, cv2.THRESH_BINARY)
-            manImage[name] = {'Threshold':thresh1, 'Image':ret}
-        return manImage
+            manImage[name] = ret
+            manThresh[name] =  thresh1
+        return manImage, manThresh
 
     def autodensity(self):
-        autoThresh = {}
-        for name, items in self.autoimage().items():
-            autoThresh[name] = items['Threshold']
+        autoThresh = self.autoimage()[1]
         autoDensities = self.densities(autoThresh)
         return autoDensities
 
     def mandensity(self, threshold=110):
-        manthresholds = {}
-        for name, items in self.manimage(threshold).items():
-            manthresholds[name] = items['Threshold']
+        manthresholds = self.manimage()[1]
         mandensities = self.densities(manthresholds)
         return mandensities
 
@@ -104,33 +104,65 @@ class Determinedensity():
             # plt.show()
         return hist_data
 
-    def save_images(self):
+    def save_images(self, destination, preview = False, save_fig = False):
         manimgs = self.manimage()
         autoimgs = self.autoimage()
         ogimgs = self.loadImages()
-        for name, ogimg in ogimgs.items():
-            fig, axs = plt.subplots(1,3, constrained_layout=True)
-            axs[0].imshow(ogimg, 'gray')
-            axs[0].set_title('Original Image')
-            axs[1].imshow(manimgs[name]['Image'], 'gray')
-            axs[1].set_title('Manual Threshold ={}'.format(manimgs[name]['Threshold']))
-            axs[2].imshow(autoimgs[name]['Image'], 'gray')
-            axs[2].set_title('Automatic Threshold={}'.format(autoimgs[name]['Threshold']))
-            fig.suptitle(name, fontsize=11)
+        fig_list = []
+        if save_fig:
+            fig, axs = plt.subplots(1, 3, constrained_layout=True)
+            for name, ogimg in ogimgs.items():
+                # fig, axs = plt.subplots(1, 3, constrained_layout=True)
+                axs[0].imshow(ogimg, 'gray')
+                axs[0].set_title('Original Image')
+                axs[1].imshow(manimgs[0][name], 'gray')
+                axs[1].set_title('Manual Threshold ={}'.format(manimgs[1][name]))
+                axs[2].imshow(autoimgs[0][name], 'gray')
+                axs[2].set_title('Automatic Threshold={}'.format(autoimgs[1][name]))
+                fig.suptitle(name, fontsize=11)
+                plt.draw()
+                # plt.savefig(name)
+                # plt.close(fig)
+                
             # plt.tight_layout()
+        if preview:
+            pre_image = self.fileList()[0]
+            fig, axs = plt.subplots(1, 3, constrained_layout=True)
+            axs[0].imshow(ogimgs[pre_image], 'gray')
+            axs[0].set_title('Original Image')
+            axs[1].imshow(manimgs[0][pre_image], 'gray')
+            axs[1].set_title('Manual Threshold ={}'.format(manimgs[1][pre_image]))
+            axs[2].imshow(autoimgs[0][pre_image], 'gray')
+            axs[2].set_title('Automatic Threshold={}'.format(autoimgs[1][pre_image]))
+            fig.suptitle(pre_image, fontsize=11)
             plt.show()
 
-    def export_data(self, density_option = True, threshold = 110, filename = 'Test_results.xlsx'):
+
+    def export_data(self, auto_option = False, man_option = False, threshold = 110, filename = 'Test_results.xlsx'):
         hist = self.histogram_plot()
-        if density_option:
-            density_data = self.autodensity().items()
-            image_data = self.autoimage()
-        else:
-            density_data = self.mandensity(threshold).items()
-            image_data = self.manimage(threshold)
+
         # Create DataFrame with info to be exported
-        ex_df = pd.DataFrame(density_data, columns = ['Sample Number', 'Density'])
-        ex_df['Threshold'] = [image_data[i]['Threshold'] for i in image_data.keys()]
+        if auto_option and man_option:
+            # Assign auto threshold density and image data to variables
+            density_data = [self.autodensity(),self.autoimage()[1],self.mandensity(threshold),self.manimage(threshold)[1]]
+            # image_data_auto = self.autoimage()[0]
+            # # Assign manual threshold density and image data to variables
+            # density_data_man = self.mandensity(threshold).items()
+            # image_data_man = self.manimage(threshold)
+            ex_df = pd.DataFrame(density_data).transpose()
+            ex_df.columns = ['Auto Density', 'Auto Threshold', 'Manual Density', 'Manual Density']
+            ex_df.index.name = 'Sample Number'
+        elif auto_option and not man_option:
+            density_data = [self.autodensity(),self.autoimage()[1]]
+            ex_df = pd.DataFrame(density_data).transpose()
+            ex_df.columns = ['Auto Density', 'Auto Threshold']
+            ex_df.index.name = 'Sample Number'
+        else:
+            density_data = [self.mandensity(threshold),self.manimage(threshold)[1]]
+            ex_df = pd.DataFrame(density_data).transpose()
+            ex_df.columns = ['Manual Density', 'Manual Density']
+            ex_df.index.name = 'Sample Number'
+
         hist_out= pd.DataFrame([hist[i]['Counts'] for i in hist.keys()], index = hist.keys())
         hist_out.rename_axis('Histogram Bins:', inplace=True)
         hist_out.rename_axis('Histogram Data', axis = 1, inplace = True)
@@ -143,8 +175,8 @@ class Determinedensity():
             # Create a Pandas Excel writer using XlsxWriter as the engine.
             writer = pd.ExcelWriter(filename, engine='xlsxwriter')
         # Position the dataframes in the worksheet.
-        ex_df.to_excel(writer, sheet_name=self.directory, index=False)  # Default position, cell A1.
-        hist_out.to_excel(writer, sheet_name=self.directory, startcol=5)
+        ex_df.to_excel(writer, sheet_name=self.directory, index=True)  # Default position, cell A1.
+        hist_out.to_excel(writer, sheet_name=self.directory, startcol=6)
         # Close the Pandas Excel writer and output the Excel file.
         writer.save()
         
