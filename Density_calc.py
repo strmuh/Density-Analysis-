@@ -104,15 +104,15 @@ class Determinedensity():
             # plt.show()
         return hist_data
 
-    def save_images(self, destination, preview = False, save_fig = False):
+    def save_images(self, destination='', preview = False, save_fig = False):
         manimgs = self.manimage()
         autoimgs = self.autoimage()
         ogimgs = self.loadImages()
         fig_list = []
         if save_fig:
-            fig, axs = plt.subplots(1, 3, constrained_layout=True)
+            # fig, axs = plt.subplots(1, 3, constrained_layout=True)
             for name, ogimg in ogimgs.items():
-                # fig, axs = plt.subplots(1, 3, constrained_layout=True)
+                fig, axs = plt.subplots(1, 3, constrained_layout=True)
                 axs[0].imshow(ogimg, 'gray')
                 axs[0].set_title('Original Image')
                 axs[1].imshow(manimgs[0][name], 'gray')
@@ -121,8 +121,9 @@ class Determinedensity():
                 axs[2].set_title('Automatic Threshold={}'.format(autoimgs[1][name]))
                 fig.suptitle(name, fontsize=11)
                 plt.draw()
-                # plt.savefig(name)
-                # plt.close(fig)
+                out = destination+'/'+str(name)
+                plt.savefig(out)
+                plt.close()
                 
             # plt.tight_layout()
         if preview:
@@ -150,7 +151,7 @@ class Determinedensity():
             # density_data_man = self.mandensity(threshold).items()
             # image_data_man = self.manimage(threshold)
             ex_df = pd.DataFrame(density_data).transpose()
-            ex_df.columns = ['Auto Density', 'Auto Threshold', 'Manual Density', 'Manual Density']
+            ex_df.columns = ['Auto Density', 'Auto Threshold', 'Manual Density', 'Manual Threshold']
             ex_df.index.name = 'Sample Number'
         elif auto_option and not man_option:
             density_data = [self.autodensity(),self.autoimage()[1]]
@@ -160,9 +161,11 @@ class Determinedensity():
         else:
             density_data = [self.mandensity(threshold),self.manimage(threshold)[1]]
             ex_df = pd.DataFrame(density_data).transpose()
-            ex_df.columns = ['Manual Density', 'Manual Density']
+            ex_df.columns = ['Manual Density', 'Threshold']
             ex_df.index.name = 'Sample Number'
 
+        stats = pd.DataFrame(ex_df.describe())
+        stats.index.name = 'Statistics Summary'
         hist_out= pd.DataFrame([hist[i]['Counts'] for i in hist.keys()], index = hist.keys())
         hist_out.rename_axis('Histogram Bins:', inplace=True)
         hist_out.rename_axis('Histogram Data', axis = 1, inplace = True)
@@ -175,8 +178,10 @@ class Determinedensity():
             # Create a Pandas Excel writer using XlsxWriter as the engine.
             writer = pd.ExcelWriter(filename, engine='xlsxwriter')
         # Position the dataframes in the worksheet.
-        ex_df.to_excel(writer, sheet_name=self.directory, index=True)  # Default position, cell A1.
-        hist_out.to_excel(writer, sheet_name=self.directory, startcol=6)
+        folder_name = self.directory.split('/')
+        ex_df.to_excel(writer, sheet_name=folder_name[-1], index=True)  # Default position, cell A1.
+        stats.to_excel(writer, sheet_name=folder_name[-1], index=True, startcol=len(ex_df.columns)+2)
+        hist_out.to_excel(writer, sheet_name=folder_name[-1], startcol=len(ex_df.columns)+len(stats.columns)+4)
         # Close the Pandas Excel writer and output the Excel file.
         writer.save()
         
