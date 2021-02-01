@@ -1,11 +1,11 @@
 """ Function to Determine Image Pixel Density for Microscopy Samples """
 # Import relavent packages
 import numpy as np
-import pandas as pd
+from pandas import DataFrame, ExcelWriter
 import matplotlib.pyplot as plt
-import cv2
-import os
-import xlsxwriter
+from cv2 import imread, cvtColor, COLOR_BGR2GRAY, THRESH_BINARY,THRESH_TRIANGLE
+from cv2 import threshold as cv2threshold
+from os import listdir
 from openpyxl import load_workbook
 
 # Create analysis class
@@ -20,7 +20,7 @@ class Determinedensity():
     # Create class method to form list of image files
     def fileList(self):
         filelist = []
-        for file in os.listdir(self.directory): # Loop over all files in directory
+        for file in listdir(self.directory): # Loop over all files in directory
             # Extract Image files (JPG)
             if file.endswith(".JPG"):
                 filelist.append(file)
@@ -31,11 +31,11 @@ class Determinedensity():
         imgrays = {}
         for image in self.fileList(): # Loop over images
             # Create variable for image
-            im = cv2.imread(self.directory+'/'+ str(image))
+            im = imread(self.directory+'/'+ str(image))
             # Convert image Grayscale
-            imgrays[image] = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+            imgrays[image] = cvtColor(im, COLOR_BGR2GRAY)
         return imgrays
-
+    # Method for calculate pixel density based on a selected threshold value
     def densities(self, threshold):
         Hist = {}
         Densities = {}
@@ -45,9 +45,10 @@ class Determinedensity():
             Hist[name] = [[counts], [bins]]
             Total_Pixels = sum(counts)
             voids = 0
+            # Loop over all bins and sum the total number of pixel below threshold value
             for a in range(1, int(threshold[name])):
                 voids += counts[a]
-            Density = 100 - voids / Total_Pixels * 100
+            Density = 100 - voids / Total_Pixels * 100 # Phase density formula
             Densities[name] = Density
         return Densities
 
@@ -57,7 +58,7 @@ class Determinedensity():
         autoThresh = {}
         #Loop over images and obtain auto threshold data
         for name, imgray in self.loadImages().items():
-            th3, ret3 = cv2.threshold(imgray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_TRIANGLE)
+            th3, ret3 = cv2threshold(imgray, 0, 255, THRESH_BINARY + THRESH_TRIANGLE)
             autoImage[name] = ret3
             autoThresh[name] = th3
         return autoImage, autoThresh
@@ -68,7 +69,7 @@ class Determinedensity():
         manThresh = {}
         # Loop over images and obtain manual threshold data
         for name, imgray in self.loadImages().items():
-            thresh1, ret = cv2.threshold(imgray, threshold, 255, cv2.THRESH_BINARY)
+            thresh1, ret = cv2threshold(imgray, threshold, 255, THRESH_BINARY)
             manImage[name] = ret
             manThresh[name] =  thresh1
         return manImage, manThresh
@@ -88,20 +89,6 @@ class Determinedensity():
         for name, imgray in self.loadImages().items():
             counts, bins = np.histogram(imgray, range(256))
             hist_data[name] = {'Counts':counts,'Bins':bins}
-            # plot histogram centered on values 0..255
-            # plt.figure(name)
-            # plt.bar(bins[:-1] - 0.5, counts, width=1, edgecolor='none')
-            # for j, k in enumerate(counts):
-            #     if k != 0:
-            #         min_val = j
-            #         break
-            # for d, t in enumerate(counts[::-1]):
-            #     if t!= 0:
-            #         max_val = len(counts)-d
-            #         break
-            # plt.xlim([min_val-2, max_val+2])
-            # plt.xlim([-0.5, 255.5])
-            # plt.show()
         return hist_data
 
     def save_images(self, destination='', preview = False, save_fig = False):
@@ -150,33 +137,33 @@ class Determinedensity():
             # # Assign manual threshold density and image data to variables
             # density_data_man = self.mandensity(threshold).items()
             # image_data_man = self.manimage(threshold)
-            ex_df = pd.DataFrame(density_data).transpose()
+            ex_df = DataFrame(density_data).transpose()
             ex_df.columns = ['Auto Density', 'Auto Threshold', 'Manual Density', 'Manual Threshold']
             ex_df.index.name = 'Sample Number'
         elif auto_option and not man_option:
             density_data = [self.autodensity(),self.autoimage()[1]]
-            ex_df = pd.DataFrame(density_data).transpose()
+            ex_df = DataFrame(density_data).transpose()
             ex_df.columns = ['Auto Density', 'Auto Threshold']
             ex_df.index.name = 'Sample Number'
         else:
             density_data = [self.mandensity(threshold),self.manimage(threshold)[1]]
-            ex_df = pd.DataFrame(density_data).transpose()
+            ex_df = DataFrame(density_data).transpose()
             ex_df.columns = ['Manual Density', 'Threshold']
             ex_df.index.name = 'Sample Number'
 
-        stats = pd.DataFrame(ex_df.describe())
+        stats = DataFrame(ex_df.describe())
         stats.index.name = 'Statistics Summary'
-        hist_out= pd.DataFrame([hist[i]['Counts'] for i in hist.keys()], index = hist.keys())
+        hist_out= DataFrame([hist[i]['Counts'] for i in hist.keys()], index = hist.keys())
         hist_out.rename_axis('Histogram Bins:', inplace=True)
         hist_out.rename_axis('Histogram Data', axis = 1, inplace = True)
         # Create a workbook and add a worksheet.
         try:
             book = load_workbook(filename)
-            writer = pd.ExcelWriter(filename, engine='openpyxl')
+            writer = ExcelWriter(filename, engine='openpyxl')
             writer.book = book
         except FileNotFoundError:
             # Create a Pandas Excel writer using XlsxWriter as the engine.
-            writer = pd.ExcelWriter(filename, engine='xlsxwriter')
+            writer = ExcelWriter(filename, engine='xlsxwriter')
         # Position the dataframes in the worksheet.
         folder_name = self.directory.split('/')
         ex_df.to_excel(writer, sheet_name=folder_name[-1], index=True)  # Default position, cell A1.
