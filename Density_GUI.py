@@ -1,9 +1,9 @@
+""" Easy to use Graphical Interface for the Analysis of Micrograph Images"""
 from Density_calc import Determinedensity
 from tkinter import *
 from tkinter import ttk
 
-# a = Determinedensity('Centre, As-cast 1')
-# a.fileList()
+
 class User_input:
     
     def __init__(self, master):
@@ -88,19 +88,15 @@ class User_input:
         if self.preview_checkbutton.state() == ('selected',):
             a.save_images(5, preview=True)
         if self.saveimage_checkbutton.state() == ('selected',):
-            print(self.saveimage_location.get())
             a.save_images(self.saveimage_location.get(),save_fig=True)
         if self.man_checkbutton.state() == ('selected',) and self.auto_checkbutton.state() == ('selected',):
             threshold = int(self.man_entry.get())
             a.export_data(man_option=True, auto_option= True,threshold=threshold, filename=outfilename)
-            print(a.mandensity(threshold),a.autodensity())
         elif self.man_checkbutton.state() == ('selected',):
             threshold = int(self.man_entry.get())
             a.export_data(man_option=True, threshold=threshold, filename=outfilename)
-            print(a.mandensity(threshold))
         elif self.auto_checkbutton.state() == ('selected',):
             a.export_data(auto_option=True, filename=outfilename)
-            print(a.autodensity())
         else:
             messagebox.askokcancel("Error", "At least one threshold option must be selected!")
             return
